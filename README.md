@@ -51,7 +51,7 @@ Here's all you'd need to accomplish this:
 }
 
 - (void)scrollViewDidScrollToTop:(UIScrollView *)scrollView {
-    [self.customScrollIndicator scrollViewDidScrollToTop:scrollView];
+    [self.indicator scrollViewDidScrollToTop:scrollView];
 }
 ```
 
