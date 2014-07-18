@@ -1,31 +1,67 @@
 //
-//  UNRCustomScrollIndicator.m
-//  unread
+//  JTSScrollIndicator.m
+//
 //
 //  Created by Jared Sinclair on 11/11/13.
 //  Copyright (c) 2013 Nice Boy LLC. All rights reserved.
 //
 
-#import "UNRCustomScrollIndicator.h"
+#import "JTSScrollIndicator.h"
 
-#import "UNRDisplayPreferencesManager.h"
+static CGFloat JTSScrollIndicator_IndicatorWidth = 2.5f;
+static CGFloat JTSScrollIndicator_MinIndicatorHeightWhenCompressed = 8.0f;
+static CGFloat JTSScrollIndicator_MinIndicatorHeightWhenScrolling = 37.0f;
+static CGFloat JTSScrollIndicator_IndicatorRightMargin = 2.5f;
+static UIEdgeInsets JTSScrollIndicator_InherentInset;
 
-static CGFloat indicatorWidth = 2.5f;
-static CGFloat minIndicatorHeightWhenCompressed = 8.0f;
-static CGFloat minIndicatorHeightWhenScrolling = 37.0f;
-static CGFloat indicatorRightMargin = 2.5f;
-static UIEdgeInsets inherentInset;
+@interface JTSScrollIndicator ()
 
-@interface UNRCustomScrollIndicator ()
-
-@property (strong, nonatomic) NSTimer *hidingTimer;
 @property (assign, nonatomic) BOOL shouldHide;
 @property (assign, nonatomic) BOOL isScrollingToTop;
-@property (weak, nonatomic) UIScrollView *scrollView;
+@property (weak, nonatomic, readwrite) UIScrollView *scrollView;
 
 @end
 
-@implementation UNRCustomScrollIndicator
+@implementation JTSScrollIndicator
+
+#pragma mark - Public
+
+- (instancetype)initWithScrollView:(UIScrollView *)scrollView {
+    CGRect startingFrame = CGRectZero;
+    self = [super initWithFrame:startingFrame];
+    if (self) {
+        _scrollView = scrollView;
+        self.layer.cornerRadius = JTSScrollIndicator_IndicatorWidth * 0.75;
+        self.clipsToBounds = YES;
+        self.alpha = 0;
+        _shouldHide = YES;
+        JTSScrollIndicator_InherentInset = UIEdgeInsetsMake(2.5, 0, 2.5, 0);
+        [scrollView addSubview:self];
+        [self reset];
+    }
+    return self;
+}
+
+- (void)setKeepHidden:(BOOL)keepHidden {
+    if (_keepHidden != keepHidden) {
+        _keepHidden = keepHidden;
+        if (_keepHidden) {
+            [self setShouldHide:YES immediately:YES];
+        }
+    }
+}
+
+- (void)reset {
+    if (self.scrollView) {
+        [self setFrame:[self.class targetRectForScrollView:self.scrollView]];
+        _isScrollingToTop = NO;
+        _keepHidden = NO;
+        _shouldHide = YES;
+        [self hide:NO];
+    }
+}
+
+#pragma mark - Math
 
 + (CGRect)targetRectForScrollView:(UIScrollView *)scrollView {
     CGRect underlyingRect = [self underlyingIndicatorRectForScrollView:scrollView];
@@ -41,25 +77,25 @@ static UIEdgeInsets inherentInset;
     UIEdgeInsets contentInset = scrollView.contentInset;
     CGPoint contentOffset = scrollView.contentOffset;
     CGFloat contentHeightWithInsets = contentHeight + contentInset.top + contentInset.bottom;
-    CGFloat frameHeightWithoutScrollIndicatorInsets = (frameHeight - indicatorInsets.top - indicatorInsets.bottom - inherentInset.top);
+    CGFloat frameHeightWithoutScrollIndicatorInsets = (frameHeight - indicatorInsets.top - indicatorInsets.bottom - JTSScrollIndicator_InherentInset.top);
     
-    underlyingRect.size.width = indicatorWidth;
-    underlyingRect.origin.x = scrollView.frame.size.width - indicatorWidth - indicatorRightMargin;
+    underlyingRect.size.width = JTSScrollIndicator_IndicatorWidth;
+    underlyingRect.origin.x = scrollView.frame.size.width - JTSScrollIndicator_IndicatorWidth - JTSScrollIndicator_IndicatorRightMargin;
     
     CGFloat ratio = (contentHeightWithInsets != 0) ? frameHeightWithoutScrollIndicatorInsets / contentHeightWithInsets : 1.0f;
     
     underlyingRect.size.height = frameHeight * ratio;
     underlyingRect.origin.y = contentOffset.y + ((contentOffset.y+contentInset.top) * ratio) + indicatorInsets.top;
     
-    if (underlyingRect.size.height < minIndicatorHeightWhenScrolling) {
+    if (underlyingRect.size.height < JTSScrollIndicator_MinIndicatorHeightWhenScrolling) {
         CGFloat contentHeightWithoutLastFrame = contentHeightWithInsets - frameHeight;
         CGFloat percentageScrolled = (contentOffset.y+contentInset.top) / contentHeightWithoutLastFrame;
-        underlyingRect.origin.y -= (minIndicatorHeightWhenScrolling - underlyingRect.size.height) * percentageScrolled;
-        underlyingRect.size.height = minIndicatorHeightWhenScrolling;
+        underlyingRect.origin.y -= (JTSScrollIndicator_MinIndicatorHeightWhenScrolling - underlyingRect.size.height) * percentageScrolled;
+        underlyingRect.size.height = JTSScrollIndicator_MinIndicatorHeightWhenScrolling;
     }
     
-    underlyingRect.size.height -= inherentInset.top;
-    underlyingRect.origin.y += inherentInset.top;
+    underlyingRect.size.height -= JTSScrollIndicator_InherentInset.top;
+    underlyingRect.origin.y += JTSScrollIndicator_InherentInset.top;
     
     return underlyingRect;
 }
@@ -75,20 +111,23 @@ static UIEdgeInsets inherentInset;
     CGFloat contentHeightWithInsets = contentHeight + contentInset.top + contentInset.bottom;
     
     if (contentOffset.y < 0-contentInset.top
-     || adjustedRect.origin.y < (0-contentInset.top + indicatorInset.top) + inherentInset.top) {
+     || adjustedRect.origin.y < (0-contentInset.top + indicatorInset.top) + JTSScrollIndicator_InherentInset.top) {
         CGFloat heightAdjustment = fabsf(contentInset.top - fabsf(contentOffset.y));
         adjustedRect.size.height -= heightAdjustment;
-        adjustedRect.size.height = MAX(adjustedRect.size.height, minIndicatorHeightWhenCompressed);
-        adjustedRect.origin.y = contentOffset.y + indicatorInset.top + inherentInset.top;
+        adjustedRect.size.height = MAX(adjustedRect.size.height, JTSScrollIndicator_MinIndicatorHeightWhenCompressed);
+        adjustedRect.origin.y = contentOffset.y + indicatorInset.top + JTSScrollIndicator_InherentInset.top;
     }
     else if (contentOffset.y + frameHeight > contentHeight + contentInset.bottom
-        || adjustedRect.origin.y + adjustedRect.size.height > contentOffset.y + frameHeight - indicatorInset.bottom - inherentInset.bottom) {
+        || adjustedRect.origin.y + adjustedRect.size.height > contentOffset.y + frameHeight - indicatorInset.bottom - JTSScrollIndicator_InherentInset.bottom) {
         adjustedRect.origin.y = contentHeightWithInsets - underlyingRect.size.height - indicatorInset.bottom;
         CGFloat heightAdjustment = (contentOffset.y + frameHeight) - (contentHeight + contentInset.bottom);
         adjustedRect.size.height -= heightAdjustment;
-        adjustedRect.size.height = MAX(adjustedRect.size.height, minIndicatorHeightWhenCompressed);
-        adjustedRect.origin.y = contentOffset.y + frameHeight - adjustedRect.size.height - indicatorInset.bottom - inherentInset.bottom;
+        adjustedRect.size.height = MAX(adjustedRect.size.height, JTSScrollIndicator_MinIndicatorHeightWhenCompressed);
+        adjustedRect.origin.y = contentOffset.y + frameHeight - adjustedRect.size.height - indicatorInset.bottom - JTSScrollIndicator_InherentInset.bottom;
     }
+    
+    adjustedRect.origin.x = underlyingRect.origin.x + indicatorInset.left;
+    adjustedRect.origin.x = underlyingRect.origin.x - indicatorInset.right;
     
     return adjustedRect;
 }
@@ -106,48 +145,9 @@ static UIEdgeInsets inherentInset;
     return (contentHeightWithInsets > frameHeight * 1.1 && contentHeight > 0);
 }
 
-#pragma mark - UIView
-
-- (void)dealloc {
-    [self cancelHidingTimer];
-    [self removeThemeChangeObservation];
-}
-
-- (id)initWithFrame:(CGRect)frame {
-    self = [super initWithFrame:frame];
-    if (self) {
-        self.layer.cornerRadius = indicatorWidth * 0.75;
-        self.clipsToBounds = YES;
-        self.alpha = 0;
-        _shouldHide = YES;
-        inherentInset = UIEdgeInsetsMake(2.5, 0, 2.5, 0);
-        [self addThemeChangeObservation];
-        [self resetColors];
-    }
-    return self;
-}
-
-- (void)setKeepHidden:(BOOL)keepHidden {
-    if (_keepHidden != keepHidden) {
-        _keepHidden = keepHidden;
-        if (_keepHidden) {
-            [self setShouldHide:YES immediately:YES];
-        }
-    }
-}
-
 #pragma mark - Scroll View Changes
 
-- (void)reset {
-    if (self.scrollView) {
-        [self setFrame:[self.class targetRectForScrollView:self.scrollView]];
-        [self cancelHidingTimer];
-        _isScrollingToTop = NO;
-        _keepHidden = NO;
-        _shouldHide = YES;
-        [self hide:NO];
-    }
-}
+#pragma mark - Required for Implementers
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
     if (self.scrollView == nil) {
@@ -159,7 +159,6 @@ static UIEdgeInsets inherentInset;
     if (self.isScrollingToTop == NO && self.keepHidden == NO) {
         if ([self.class indicatorShouldBeVisibleForScrollView:scrollView]) {
             [self setShouldHide:NO immediately:YES];
-            [self resetHidingTimer];
         } else {
             [self setShouldHide:YES immediately:NO];
         }
@@ -183,7 +182,7 @@ static UIEdgeInsets inherentInset;
     [self setShouldHide:YES immediately:YES];
     
     // ScrollViewDidScrollToTop: is not called sometimes, goddamn UIKit. :-/
-    __weak UNRCustomScrollIndicator *weakSelf = self;
+    __weak JTSScrollIndicator *weakSelf = self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.35 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         [weakSelf setIsScrollingToTop:NO];
     });
@@ -205,9 +204,6 @@ static UIEdgeInsets inherentInset;
         else if (immediately) {
             [self hide:YES];
         }
-        else {
-            [self resetHidingTimer];
-        }
     }
 }
 
@@ -216,86 +212,14 @@ static UIEdgeInsets inherentInset;
 }
 
 - (void)hide:(BOOL)animated {
-    __weak UNRCustomScrollIndicator *weakSelf = self;
+    __weak JTSScrollIndicator *weakSelf = self;
     UIViewAnimationOptions options = UIViewAnimationOptionBeginFromCurrentState;
     [UIView animateWithDuration:0.33 delay:0 options:options animations:^{
         [weakSelf setAlpha:0];
     } completion:nil];
 }
 
-#pragma mark - Hiding Timer
-
-- (void)resetHidingTimer {
-    
-#warning Don't need the hiding timer anymore, probably
-    /*
-    
-    if ([_hidingTimer isValid] == NO) {
-        [self setHidingTimer:nil];
-    }
-    
-    if (_hidingTimer == nil) {
-        NSTimer *timer = [[NSTimer alloc] initWithFireDate:[NSDate dateWithTimeIntervalSinceNow:0.5]
-                                                interval:0
-                                                  target:self
-                                                selector:@selector(hidingTimerFired:)
-                                                userInfo:nil
-                                                 repeats:NO];
-        [self setHidingTimer:timer];
-        [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
-    }
-    else {
-        [_hidingTimer setFireDate:[NSDate dateWithTimeIntervalSinceNow:0.5]];
-    }
-     */
-}
-
-- (void)cancelHidingTimer {
-#warning Don't need the hiding timer anymore, probably
-    /*
-    [_hidingTimer invalidate];
-    _hidingTimer = nil;
-     */
-}
-
-- (void)hidingTimerFired:(NSTimer *)timer {
-#warning Don't need the hiding timer anymore, probably
-    /*
-    if (self.scrollView.dragging == NO) {
-        [self setShouldHide:YES immediately:YES];
-    }
-    */
-}
-
-#pragma mark - Colors
-
-- (void)addThemeChangeObservation {
-    __weak UNRCustomScrollIndicator *weakSelf = self;
-    
-    [[NSNotificationCenter defaultCenter]
-     addObserverForName:UNRDisplayPreferencesManagerDidChangeThemeNotification
-     object:nil
-     queue:[NSOperationQueue mainQueue]
-     usingBlock:^(NSNotification *note) {
-         [weakSelf resetColors];
-     }];
-}
-
-- (void)removeThemeChangeObservation {
-    [[NSNotificationCenter defaultCenter] removeObserver:self name:UNRDisplayPreferencesManagerDidChangeThemeNotification object:nil];
-}
-
-- (void)resetColors {
-    self.backgroundColor = [UNRDisplayPreferencesManager sharedInstance].currentTheme.color_scrollIndicator;
-}
-
 @end
-
-
-
-
-
-
 
 
 
