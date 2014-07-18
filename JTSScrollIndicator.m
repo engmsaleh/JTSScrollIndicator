@@ -14,7 +14,7 @@ static CGFloat JTSScrollIndicator_MinIndicatorHeightWhenScrolling = 37.0f;
 static CGFloat JTSScrollIndicator_IndicatorRightMargin = 2.5f;
 static UIEdgeInsets JTSScrollIndicator_InherentInset;
 
-@interface JTSScrollIndicator ()
+@interface JTSScrollIndicator () <UIScrollViewDelegate>
 
 @property (assign, nonatomic) BOOL shouldHide;
 @property (assign, nonatomic) BOOL isScrollingToTop;
@@ -46,7 +46,7 @@ static UIEdgeInsets JTSScrollIndicator_InherentInset;
     if (_keepHidden != keepHidden) {
         _keepHidden = keepHidden;
         if (_keepHidden) {
-            [self setShouldHide:YES immediately:YES];
+            [self setShouldHide:YES];
         }
     }
 }
@@ -134,10 +134,6 @@ static UIEdgeInsets JTSScrollIndicator_InherentInset;
 
 + (BOOL)indicatorShouldBeVisibleForScrollView:(UIScrollView *)scrollView {
     
-    if (scrollView.decelerating == NO && scrollView.dragging == NO) {
-        return NO;
-    }
-    
     CGFloat contentHeight = scrollView.contentSize.height;
     CGFloat frameHeight = scrollView.frame.size.height;
     UIEdgeInsets contentInset = scrollView.contentInset;
@@ -158,50 +154,67 @@ static UIEdgeInsets JTSScrollIndicator_InherentInset;
     
     if (self.isScrollingToTop == NO && self.keepHidden == NO) {
         if ([self.class indicatorShouldBeVisibleForScrollView:scrollView]) {
-            [self setShouldHide:NO immediately:YES];
+            [self setShouldHide:NO];
+            if (scrollView.dragging == NO && scrollView.decelerating == NO) {
+                // ScrollViewDidEndScrollingAnimation is not called sometimes, goddamn UIKit,
+                // such as when dismissing a keyboard triggers an atypical programmatic scroll.
+                __weak JTSScrollIndicator *weakSelf = self;
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.35 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+                    [weakSelf setShouldHide:YES];
+                });
+            }
         } else {
-            [self setShouldHide:YES immediately:NO];
+            [self setShouldHide:YES];
         }
-    } else {
-        [self setShouldHide:YES immediately:NO];
+    }
+    else if (self.isScrollingToTop) {
+        [self setShouldHide:NO];
+    }
+    else {
+        [self setShouldHide:YES];
     }
 }
 
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
     if (decelerate == NO) {
-        [self setShouldHide:YES immediately:YES];
+        [self setShouldHide:YES];
     }
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
-    [self setShouldHide:YES immediately:YES];
+    [self setShouldHide:YES];
 }
 
 - (void)scrollViewWillScrollToTop:(UIScrollView *)scrollView {
     [self setIsScrollingToTop:YES];
-    [self setShouldHide:YES immediately:YES];
+    //[self setShouldHide:YES];
     
     // ScrollViewDidScrollToTop: is not called sometimes, goddamn UIKit. :-/
     __weak JTSScrollIndicator *weakSelf = self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.35 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         [weakSelf setIsScrollingToTop:NO];
+        [weakSelf setShouldHide:YES];
     });
 }
 
 - (void)scrollViewDidScrollToTop:(UIScrollView *)scrollView {
     [self setIsScrollingToTop:NO];
+    [self setShouldHide:YES];
+}
+
+- (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView {
+    [self setShouldHide:YES];
 }
 
 #pragma mark - Animations
 
-- (void)setShouldHide:(BOOL)shouldHide immediately:(BOOL)immediately {
+- (void)setShouldHide:(BOOL)shouldHide {
     
     if (_shouldHide != shouldHide) {
         _shouldHide = shouldHide;
         if (_shouldHide == NO) {
             [self show:YES];
-        }
-        else if (immediately) {
+        } else {
             [self hide:YES];
         }
     }

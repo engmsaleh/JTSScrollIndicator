@@ -59,7 +59,7 @@
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView;
 - (void)scrollViewWillScrollToTop:(UIScrollView *)scrollView;
 - (void)scrollViewDidScrollToTop:(UIScrollView *)scrollView;
-
+- (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView;
 @end
 
 
