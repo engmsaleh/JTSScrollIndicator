@@ -51,3 +51,4 @@ That's it.
 
 - JTSScrollIndicator only works with vertically-scrolling content. 
 - JTSScrollIndicator will respect your scroll view's scrollIndicatorInsets.
+- JTSScrollIndicator does not support bordered state, though I suppose you could try simulating one with a CALayer border.
