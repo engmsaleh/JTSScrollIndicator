@@ -3,6 +3,10 @@ JTSScrollIndicator
 
 *A substitute scroll indicator for iOS UIScrollViews. Looks almost identical, but allows custom colors.*
 
+## As Seen In
+
+- **Unread - an RSS Reader** – Unread, both for iPhone and iPad, uses JTSScrollIndicator to allow the scroll indicator to subtly change to an appropriate color for each of the many color themes in the app.
+
 ## Usage
 
 First, initialize a new indicator as follows:
