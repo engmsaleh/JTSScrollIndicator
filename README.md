@@ -1,7 +1,7 @@
 JTSScrollIndicator
 ==================
 
-*A substitute scroll indicator for iOS UIScrollViews. Looks almost identical, but allows custom colors.*
+*A substitute scroll indicator for iOS UIScrollViews. Looks and behaves identically to the native iOS scroll indicator, but allows custom colors.*
 
 ## As Seen In
 
