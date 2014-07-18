@@ -7,7 +7,7 @@ JTSScrollIndicator
 
 - **Unread - an RSS Reader** – Unread, both for iPhone and iPad, uses JTSScrollIndicator to allow the scroll indicator to subtly change to an appropriate color for each of the many color themes in the app.
 
-- **Unnamed Time Zone App** _ A time zone app I'm working on. I made it look garishly yellow for the screenshot below, but you can choose any color you like.
+- **Unnamed Time Zone App** – A time zone app I'm working on. I made it look garishly yellow for the screenshot below, but you can choose any color you like.
 
 ## Screenshot
 
